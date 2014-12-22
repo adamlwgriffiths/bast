@@ -6,6 +6,7 @@ from OpenGL import GL
 from ..object import ManagedObject, BindableObject
 from .buffer_pointer import BufferPointer
 from ..texture.texture import BufferTexture
+from .. import dtypes
 
 
 class Buffer(BindableObject, ManagedObject):
@@ -13,8 +14,9 @@ class Buffer(BindableObject, ManagedObject):
     _delete_func = GL.glDeleteBuffers
     _bind_func = GL.glBindBuffer
     _target = None
+    _usage = GL.GL_STATIC_DRAW
 
-    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=GL.GL_STATIC_DRAW):
+    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=None):
         super(Buffer, self).__init__(handle=buffer.handle if buffer else None)
         if data is not None:
             data = np.array(data, dtype=dtype)
@@ -30,7 +32,7 @@ class Buffer(BindableObject, ManagedObject):
             self._nbytes = self.size * np.dtype(dtype).itemsize
 
         self._offset = offset
-        self._usage = usage
+        self._usage = usage or self._usage
         self._mapped_buffer = None
 
         if not self._nbytes:
@@ -189,7 +191,7 @@ class UniformBufferMixin(object):
 class ArrayBuffer(ArrayBufferMixin, Buffer):
     # TODO: add a bind method that binds the current buffer based on dtype size
     # TODO: add a bind method that binds sub-sections of the buffer based on complex dtypes
-    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=GL.GL_STATIC_DRAW):
+    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=None):
         super(ArrayBuffer, self).__init__(data=data, shape=shape, dtype=dtype, buffer=buffer, offset=offset, usage=usage)
 
         # create a list of pointers
@@ -210,11 +212,15 @@ class ArrayBuffer(ArrayBufferMixin, Buffer):
         return self._pointers.__class__(self._pointers)
 
 class ElementBuffer(ElementBufferMixin, Buffer):
-    def render(self, primitive=GL.GL_TRIANGLES):
-        # add a render method that renders the currently bound buffer with the current element list
-        offset = 0
-        count = self.size
-        GL.glDrawArrays(primitive, offset, count)
+    def render(self, primitive=GL.GL_TRIANGLES, start=None, count=None):
+        count = count or self.size
+        dtype = dtypes.for_dtype(self.dtype)
+        gl_enum = dtype.gl_enum
+        offset = (start or 0) * np.dtype(dtype.dtype).itemsize
+        # convert to ctypes void pointer
+        offset = ctypes.c_void_p(offset)
+        with self:
+            GL.glDrawElements(primitive, count, gl_enum, offset)
 
 class AtomicCounterBuffer(AtomicCounterBufferMixin, Buffer):
     pass
@@ -235,7 +241,7 @@ class PixelUnpackBuffer(PixelUnpackBufferMixin, Buffer):
     pass
 
 class TextureBuffer(TextureBufferMixin, Buffer):
-    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=GL.GL_STATIC_DRAW, internal_format=None):
+    def __init__(self, data=None, shape=None, dtype=None, buffer=None, offset=0, usage=None, internal_format=None):
         super(TextureBuffer, self).__init__(data=data, shape=shape, dtype=dtype, buffer=buffer, offset=offset, usage=usage)
 
         # create the texture
@@ -249,7 +255,7 @@ class TransformFeedbackBuffer(TransformFeedbackBufferMixin, Buffer):
     pass
 
 class UniformBuffer(UniformBufferMixin, Buffer):
-    pass
+    _usage = GL.GL_DYNAMIC_DRAW
 
 class VertexBuffer(ArrayBuffer):
     pass

@@ -3,7 +3,7 @@ from OpenGL import GL
 from OpenGL.GL.ARB import texture_rg
 import numpy as np
 from .. import dtypes
-from ..proxy import Proxy, Integer32Proxy
+from ..proxy import Proxy, Integer32Proxy, Float32Proxy
 from ..object import ManagedObject, BindableObject
 from ...common.object import DescriptorMixin
 try:
@@ -35,6 +35,7 @@ class TextureUnitProxy(Integer32Proxy):
     def _set_args(self, obj, value):
         return self._setter_args + [GL.GL_TEXTURE0 + value]
 
+
 class TextureProxy(Proxy):
     def __init__(self, property, **kwargs):
         super(TextureProxy, self).__init__(
@@ -54,7 +55,6 @@ class Integer32TextureProxy(TextureProxy):
             dtype=np.int32,
         )
 
-
 class Float32TextureProxy(TextureProxy):
     def __init__(self, property):
         super(Float32TextureProxy, self).__init__(
@@ -63,6 +63,37 @@ class Float32TextureProxy(TextureProxy):
             setter=GL.glTexParameterf,
             dtype=np.float32,
         )
+
+
+class TextureLevelProxy(Proxy):
+    def __init__(self, property, level=0, **kwargs):
+        super(TextureLevelProxy, self).__init__(
+            getter_args=[level, property],
+            prepend_args=['_target'],
+            **kwargs
+        )
+
+    def _get_args(self, obj, cls):
+        return super(TextureLevelProxy, self)._get_args(obj, cls) + [obj.handle]
+
+class Integer32TextureLevelProxy(TextureLevelProxy):
+    def __init__(self, property, level=0):
+        super(Integer32TextureLevelProxy, self).__init__(
+            property,
+            level,
+            getter=GL.glGetTexLevelParameteriv,
+            dtype=np.int32,
+        )
+
+class Float32TextureLevelProxy(TextureLevelProxy):
+    def __init__(self, property, level=0):
+        super(Float32TextureLevelProxy, self).__init__(
+            property,
+            level,
+            getter=GL.glGetTexLevelParameterfv,
+            dtype=np.float32,
+        )
+
 
 class SwizzleProxy(TextureProxy):
     _swizzles = (
@@ -136,7 +167,7 @@ class Texture(DescriptorMixin, BindableObject, ManagedObject):
     swizzle = SwizzleProxy()
 
     @classmethod
-    def infer_internal_format(cls, shape, dtype):
+    def infer_internal_format(cls, shape, dtype, explicit=False):
         try:
             # GL_RED doesn't give us specific types in PyOpenGL, so use GL_R
             # GL_R and GL_RG should be taken from the rg extension
@@ -147,29 +178,30 @@ class Texture(DescriptorMixin, BindableObject, ManagedObject):
                 4:  ('GL_RGBA', GL),
             }[shape[-1]]
 
-            """
-            type = {
-                np.uint8:   '8UI',
-                np.uint16:  '16UI',
-                np.uint32:  '32UI',
-                np.int8:    '8I',
-                np.int16:   '16I',
-                np.int32:   '32I',
-                np.float16: '16F',
-                np.float32: '32F',
-            }[dtype.type]
-            """
-
-            type = {
-                np.uint8:   '8',
-                np.uint16:  '16',
-                np.uint32:  '',
-                np.int8:    '8',
-                np.int16:   '16',
-                np.int32:   '',
-                np.float16: '16F',
-                np.float32: '32F',
-            }[np.dtype(dtype).type]
+            if explicit:
+                # include type information for signed and unsigned integers
+                # also for 32 bit integers
+                type = {
+                    np.uint8:   '8UI',
+                    np.uint16:  '16UI',
+                    np.uint32:  '32UI',
+                    np.int8:    '8I',
+                    np.int16:   '16I',
+                    np.int32:   '32I',
+                    np.float16: '16F',
+                    np.float32: '32F',
+                }[dtype.type]
+            else:
+                type = {
+                    np.uint8:   '8',
+                    np.uint16:  '16',
+                    np.uint32:  '',
+                    np.int8:    '8',
+                    np.int16:   '16',
+                    np.int32:   '',
+                    np.float16: '16F',
+                    np.float32: '32F',
+                }[np.dtype(dtype).type]
 
             string = base + type
             enum = getattr(module, string)
@@ -233,7 +265,7 @@ class BasicTexture(Texture):
         image = Image.open(filename)
         if flip:
             image = image.transpose(Image.FLIP_TOP_BOTTOM)
-        obj = cls(image, flip=flip, **kwargs)
+        obj = cls(image, **kwargs)
         return obj
 
     @classmethod
@@ -358,12 +390,12 @@ class BasicTexture(Texture):
             GL.glGenerateMipmap(self._target)
 
     @property
-    def size(self):
-        return self._size
-
-    @property
     def internal_format(self):
         return self._internal_format
+
+    @property
+    def size(self):
+        return self._size
 
     @property
     def dtype(self):
@@ -446,11 +478,39 @@ class RectangularTexture(Texture2D_Mixin, BasicTexture):
 class BufferTexture(Texture):
     _target = GL.GL_TEXTURE_BUFFER
 
+    bound_buffer = Integer32TextureLevelProxy(GL.GL_TEXTURE_BUFFER_DATA_STORE_BINDING)
+
     def __init__(self, buffer, internal_format=None):
         super(BufferTexture, self).__init__()
-        internal_format = internal_format or self.infer_internal_format(buffer.shape, buffer.dtype)
+        self._buffer = buffer
+        self._internal_format = internal_format or self.infer_internal_format(buffer.shape, buffer.dtype, explicit=True)
+
         with self:
-            GL.glTexBuffer(self._target, internal_format, buffer.handle)
+            GL.glTexBuffer(self._target, self._internal_format, buffer.handle)
+
+    @property
+    def internal_format(self):
+        return self._internal_format
+
+    @property
+    def size(self):
+        return self._buffer._size
+
+    @property
+    def dtype(self):
+        return self._buffer._dtype
+
+    @property
+    def shape(self):
+        return self._buffer.shape
+
+    @property
+    def width(self):
+        return self._buffer.size
+
+    @property
+    def buffer(self):
+        return self._buffer
 
 """
 class CubeMapTexture(BasicTexture):

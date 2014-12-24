@@ -48,6 +48,10 @@ class Proxy(object):
             value = [v.item() for v in value]
             if len(value) == 1:
                 value = value[0]
+        elif hasattr(value, 'value'):
+            value = value.value
+            if self._dtype:
+                value = self._dtype(value)
         else:
             value = value.item()
             if self._dtype:

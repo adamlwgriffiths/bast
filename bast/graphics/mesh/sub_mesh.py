@@ -20,7 +20,7 @@ class SubMesh(DescriptorMixin):
         self._bind_pointers()
 
     def _bind_pointers(self):
-        # TODO: make this more efficient
+        # TODO: make this more efficient, don't just clear all pointers
         self._vertex_array.clear()
 
         # assign our pointers to the vertex array
@@ -38,7 +38,7 @@ class SubMesh(DescriptorMixin):
 
         # render
         with self._material:
-            if self.indices:
+            if self.indices is not None:
                 self._vertex_array.render_indices(self.indices, self.primitive)
             else:
                 self._vertex_array.render(self.primitive)

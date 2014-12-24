@@ -3,7 +3,7 @@ from OpenGL import GL
 from OpenGL.GL.ARB import texture_rg
 import numpy as np
 from .. import dtypes
-from ..proxy import Proxy, Integer32Proxy, Float32Proxy
+from ..proxy import Proxy, Integer32Proxy
 from ..object import ManagedObject, BindableObject
 from ...common.object import DescriptorMixin
 try:

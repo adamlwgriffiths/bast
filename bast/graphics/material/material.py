@@ -4,6 +4,9 @@ from ...common.object import DescriptorMixin
 from ..texture.texture import Texture
 from ..buffer.buffer import TextureBuffer
 
+# TODO: make this a Pipeline
+# material should be a set of data that feeds into a pipeline
+
 # TODO: iterate through properties
 # if texture, create a sampler
 # provide list of texture properties

@@ -29,9 +29,20 @@ class BufferPointer(object):
         self.normalize = normalize
 
     def enable(self, location):
+        dtype = dtypes.for_dtype(self.dtype)
         with self._buffer:
             GL.glEnableVertexAttribArray(location)
-            GL.glVertexAttribPointer(location, self.count, dtypes.for_dtype(self.dtype).gl_enum, self.normalize, self.stride, self.offset)
+            if dtype.dtype == np.float64:
+                # GL 4.1
+                # doubles
+                GL.glVertexAttribLPointer(location, self.count, dtype.gl_enum, self.stride, self.offset)
+            elif np.issubdtype(dtype.dtype, np.integer):
+                # GL 3.0
+                # integrals
+                GL.glVertexAttribIPointer(location, self.count, dtype.gl_enum, self.stride, self.offset)
+            else:
+                # all others
+                GL.glVertexAttribPointer(location, self.count, dtype.gl_enum, self.normalize, self.stride, self.offset)
 
     def disable(self, location):
         GL.glDisableVertexAttribArray(location)

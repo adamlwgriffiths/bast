@@ -57,8 +57,8 @@ class VertexArray(BindableObject, ManagedObject):
             del self[location]
 
     def render(self, primitive=GL.GL_TRIANGLES, start=None, count=None):
-        count = count or (self._count - start)
         start = start or 0
+        count = count or (self._count - start)
         with self:
             GL.glDrawArrays(primitive, start, count)
 

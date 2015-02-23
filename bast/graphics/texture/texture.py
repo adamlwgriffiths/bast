@@ -33,8 +33,7 @@ class TextureUnitProxy(Integer32Proxy):
         return result - GL.GL_TEXTURE0
 
     def _set_args(self, obj, value):
-        return self._setter_args + [GL.GL_TEXTURE0 + value]
-
+        return [GL.GL_TEXTURE0 + value]
 
 class TextureProxy(Proxy):
     def __init__(self, property, **kwargs):
@@ -136,7 +135,16 @@ class SwizzleProxy(TextureProxy):
         return super(SwizzleProxy, self)._set_args(obj, value)
 
 
+class ActiveUnitMetaClass(type):
+    """Allows the setting of the active_unit variable when called on a class, instead of an object.
+    https://stackoverflow.com/questions/28403069/way-to-have-a-class-level-type-descriptor-with-set
+    """
+    active_unit = TextureUnitProxy()
+
+
 class Texture(DescriptorMixin, BindableObject, ManagedObject):
+    __metaclass__ = ActiveUnitMetaClass
+
     _create_func = GL.glGenTextures
     _delete_func = GL.glDeleteTextures
     _bind_func = GL.glBindTexture

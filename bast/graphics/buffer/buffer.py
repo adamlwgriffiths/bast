@@ -1,7 +1,8 @@
 from __future__ import absolute_import
+import ctypes
+from copy import copy
 import numpy as np
 from numpy.core.multiarray import int_asbuffer
-import ctypes
 from OpenGL import GL
 from ..object import ManagedObject, BindableObject
 from .buffer_pointer import BufferPointer
@@ -208,8 +209,7 @@ class ArrayBuffer(ArrayBufferMixin, Buffer):
 
     @property
     def pointers(self):
-        # return a copy of the data
-        return self._pointers.__class__(self._pointers)
+        return copy(self._pointers)
 
 class ElementBuffer(ElementBufferMixin, Buffer):
     def render(self, primitive=GL.GL_TRIANGLES, start=None, count=None):

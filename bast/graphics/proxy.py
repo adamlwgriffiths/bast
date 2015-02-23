@@ -28,7 +28,7 @@ class Proxy(object):
 
     def __get__(self, obj, cls):
         if not self._getter:
-            raise ValueError('Getting value not supported')
+            raise AttributeError('Getting value not supported')
 
         args = self._get_args(obj, cls)
         if self._bind:
@@ -60,7 +60,7 @@ class Proxy(object):
 
     def __set__(self, obj, value):
         if not self._setter:
-            raise ValueError('Setting value not supported')
+            raise AttributeError('Setting value not supported')
 
         data = np.array(value, dtype=self._dtype)
         args = self._set_args(obj, data)
